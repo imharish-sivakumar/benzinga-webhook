@@ -3,7 +3,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"regexp"
 
@@ -46,10 +45,9 @@ func (h *Handler) LogPayload(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
 		h.log.Error("failed to decode json", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
-		_, err := w.Write([]byte(fmt.Sprintf(`{"error": "%s"}`, err.Error())))
-		if err != nil {
-			h.log.Error("unable to write response body", zap.Error(err))
-		}
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error": "invalid request payload",
+		})
 		return
 	}
 
@@ -66,5 +64,7 @@ func (h *Handler) LogPayload(w http.ResponseWriter, r *http.Request) {
 
 	h.batch.Add(entry)
 	w.WriteHeader(http.StatusAccepted)
-	_, _ = w.Write([]byte(`{"status": "Ok"}`))
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status": "Ok",
+	})
 }
