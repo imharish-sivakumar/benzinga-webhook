@@ -105,6 +105,10 @@ jobs:
           name: terraform-plan
           path: .
 
+      - name: Check tflan folder
+        run: |
+          ls -ltra
+
       - name: Terraform Apply
         run: terraform apply tfplan
 
