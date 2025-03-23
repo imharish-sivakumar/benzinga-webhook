@@ -7,7 +7,7 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    bucket  = "generic-infra-bucket"    # Replace with your S3 bucket name
+    bucket  = "generic-infra-bucket"     # Replace with your S3 bucket name
     key     = "terraform/state/filepath" # Replace with the desired state file path
     region  = "us-east-1"                # Replace with your bucket region
     encrypt = true                       # Encrypt state file
