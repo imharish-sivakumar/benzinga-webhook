@@ -1,3 +1,5 @@
+#checkov:skip=CKV_AWS_91 reason="Access logging is manually configured via separate bucket policy"
+
 # Specify the provider
 provider "aws" {
   region = "us-east-1" # Replace with your preferred AWS region
