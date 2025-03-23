@@ -111,7 +111,7 @@ jobs:
           ls .. -lta 
 
       - name: Terraform Apply
-        run: terraform apply tfplan
+        run: terraform apply ../tfplan
 
       - name: Run Terraform Command and Store Output - 1
         env:
