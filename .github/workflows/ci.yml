@@ -76,7 +76,7 @@ jobs:
         run: go install github.com/jstemmer/go-junit-report@latest
 
       - name: Generate test report in JUnit format
-        run: go test -v 2>&1 | tee test-report.txt | go-junit-report > report.xml
+        run: go test ./... -v 2>&1 | tee test-report.txt | go-junit-report > report.xml
 
       - name: Upload test report
         uses: actions/upload-artifact@v4
