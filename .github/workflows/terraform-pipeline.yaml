@@ -1,0 +1,165 @@
+name: Terraform Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # Job for linting Terraform code
+  lint:
+    name: Terraform Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infrastructure
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.10.4 # Use the desired Terraform version
+
+      - name: Lint Terraform code
+        run: terraform fmt -check -recursive
+
+  # Job for Terraform init and plan
+  plan:
+    name: Terraform Init and Plan
+    needs: [lint]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infrastructure
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.10.4 # Use the desired Terraform version
+
+      - name: Create SSH Key File
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PUBLIC_KEY }}" > ~/.ssh/id_rsa.pub
+          chmod 600 ~/.ssh/id_rsa.pub  # change permission to 600
+        shell: bash
+
+      - name: Initialize Terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Upload Plan File
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-plan
+          path: tfplan
+
+  # Job for Terraform Apply
+  apply:
+    name: Terraform Apply
+    needs: plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infrastructure
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    outputs:
+      public_dns: ${{ steps.get_dns.outputs.public_dns }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.10.4
+
+      - name: Create SSH Key File
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PUBLIC_KEY }}" > ~/.ssh/id_rsa.pub
+          chmod 600 ~/.ssh/id_rsa.pub
+        shell: bash
+
+      - name: Initialize Terraform
+        run: terraform init
+
+      - name: Download Plan File
+        uses: actions/download-artifact@v3
+        with:
+          name: terraform-plan
+          path: .
+
+      - name: Terraform Apply
+        run: terraform apply tfplan
+
+      - name: Run Terraform Command and Store Output - 1
+        env:
+          TF_LOG: ERROR
+        run: terraform output -raw aws_ec2_instance_public_dns
+
+      - name: Run Terraform Command and Store Output
+        id: get_dns
+        env:
+          TF_LOG: ERROR
+        run: |
+            DNS=$(terraform output -raw aws_ec2_instance_public_dns | sed -E 's/.*output -raw aws_ec2_instance_public_dns//' | tr -d '\n' | awk '{$1=$1};1')
+            VALUE=$(echo "$DNS" | awk -F'::' '{print $1}' | awk '{$1=$1};1')
+            echo "extracted: $VALUE"
+            echo "public_dns=$VALUE" >> $GITHUB_OUTPUT
+
+  # Job for Ansible
+  run-ansible:
+    name: Ansible script
+    needs: apply
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infrastructure
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create SSH public key file
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PUBLIC_KEY }}" > ~/.ssh/id_rsa.pub
+          chmod 600 ~/.ssh/id_rsa.pub
+        shell: bash
+
+      - name: Create SSH private key file
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+        shell: bash
+
+      - name: Install Ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible
+
+      - name: Update Ansible Host
+        working-directory: ansible
+        run: |
+          awk "/^\[flask_servers\]/ {in_section=1} in_section && /ansible_host=/ {sub(/ansible_host=[^ ]*/, \"ansible_host=${{ needs.apply.outputs.public_dns }}\")} {print} /^\s*$/ {in_section=0}" inventory.ini > temp.ini && mv temp.ini inventory.ini
+
+      - name: Run Ansible Playbook
+        working-directory: ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: False
+        run: ansible-playbook -i inventory.ini setup_flask_nginx.yml

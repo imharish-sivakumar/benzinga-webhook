@@ -1,0 +1,135 @@
+---
+- name: Setup Go Application with Nginx and Docker
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update the package cache
+      apt:
+        update_cache: yes
+
+    # Install required packages
+    - name: Install Nginx, Git, and Python packages
+      apt:
+        name:
+          - nginx
+          - git
+          - python3
+          - python3-pip
+          - python3-venv
+        state: present
+
+    - name: Remove the default Nginx configuration
+      file:
+        path: /etc/nginx/sites-available/default
+        state: absent
+      become: yes
+
+    - name: Remove the default Nginx symbolic link
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      become: yes
+
+    # Create Nginx configuration file
+    - name: Create Nginx configuration for Flask application
+      copy:
+        dest: /etc/nginx/conf.d/flask_app.conf
+        content: |
+          server {
+              listen 80;
+              server_name _;
+
+              location / {
+                  proxy_pass http://127.0.0.1:8080;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              }
+          }
+      notify:
+        - Reload Nginx
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      become: yes
+
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded
+      become: yes
+
+    # Install Docker prerequisites
+    - name: Install ca-certificates and curl
+      apt:
+        name:
+          - ca-certificates
+          - curl
+        state: present
+
+    # Create directory for Docker GPG key
+    - name: Create directory for Docker GPG key
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    # Download Docker's GPG key
+    - name: Download Docker's GPG key
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    # Add Docker repository
+    - name: Add Docker repository to Apt sources
+      shell: |
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+
+    # Update package cache for Docker
+    - name: Update package cache after adding Docker repository
+      apt:
+        update_cache: yes
+
+    # Install Docker and related packages
+    - name: Install Docker and Compose plugin
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    # Start Docker service
+    - name: Ensure Docker is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # Add the current user to the Docker group
+    - name: Add current user to Docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    # Verify Docker installation
+    - name: Verify Docker is installed
+      command: docker --version
+
+    # Verify Docker Compose installation
+    - name: Verify Docker Compose is installed
+      command: docker compose version
+
+  handlers:
+    - name: Reload systemd
+      command: systemctl daemon-reload
+
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded
