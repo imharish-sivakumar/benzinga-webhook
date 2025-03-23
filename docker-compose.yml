@@ -1,0 +1,11 @@
+services:
+  webhook-receiver:
+    build: .
+    container_name: webhook-receiver
+    ports:
+      - "8080:8080"
+    environment:
+      - BATCH_SIZE=5
+      - BATCH_INTERVAL=10s
+      - POST_ENDPOINT=https://httpbin.org/post
+    restart: unless-stopped
