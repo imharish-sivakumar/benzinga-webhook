@@ -219,13 +219,13 @@ resource "aws_s3_bucket_policy" "alb_log_policy" {
     Version = "2012-10-17",
     Statement = [
       {
-        Sid       = "AWSLogDeliveryWrite",
-        Effect    = "Allow",
+        Sid    = "AWSLogDeliveryWrite",
+        Effect = "Allow",
         Principal = {
           Service = "elasticloadbalancing.amazonaws.com"
         },
-        Action    = "s3:PutObject",
-        Resource  = "arn:aws:s3:::generic-infra-bucket/alb-logs/AWSLogs/*",
+        Action   = "s3:PutObject",
+        Resource = "arn:aws:s3:::generic-infra-bucket/alb-logs/AWSLogs/*",
         Condition = {
           StringEquals = {
             "s3:x-amz-acl" = "bucket-owner-full-control"
@@ -233,8 +233,8 @@ resource "aws_s3_bucket_policy" "alb_log_policy" {
         }
       },
       {
-        Sid       = "AWSLogDeliveryAclCheck",
-        Effect    = "Allow",
+        Sid    = "AWSLogDeliveryAclCheck",
+        Effect = "Allow",
         Principal = {
           Service = "elasticloadbalancing.amazonaws.com"
         },
