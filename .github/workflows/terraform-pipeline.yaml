@@ -106,7 +106,7 @@ jobs:
           path: .
 
       - name: Terraform Apply
-        run: terraform apply tfplan
+        run: terraform apply ./infrastructure/tfplan
 
       - name: Run Terraform Command and Store Output - 1
         env:
