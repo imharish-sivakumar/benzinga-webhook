@@ -60,7 +60,7 @@ func TestLogPayloadValidation(t *testing.T) {
 				Completed: true,
 			},
 			expectCode:   http.StatusAccepted,
-			expectedBody: `{"status": "Ok"}`,
+			expectedBody: `{"status":"Ok"}`,
 		},
 		{
 			name: "invalid request - missing user_id",
@@ -176,7 +176,7 @@ func TestLogPayloadValidation(t *testing.T) {
 		},
 		{
 			name:         "invalid request body",
-			expectedBody: `{"error": "unexpected EOF"}`,
+			expectedBody: `{"error":"invalid request payload"}`,
 			expectCode:   http.StatusBadRequest,
 			payload:      nil,
 			rawBody:      `{`,
@@ -199,7 +199,7 @@ func TestLogPayloadValidation(t *testing.T) {
 				Completed: false,
 			},
 			expectCode:   http.StatusAccepted,
-			expectedBody: `{"status": "Ok"}`,
+			expectedBody: `{"status":"Ok"}`,
 		},
 	}
 
