@@ -219,8 +219,8 @@ resource "aws_s3_bucket_policy" "alb_logging_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "ALBLoggingPermissions"
-        Effect    = "Allow"
+        Sid    = "ALBLoggingPermissions"
+        Effect = "Allow"
         Principal = {
           Service = "logdelivery.elasticloadbalancing.amazonaws.com"
         }
