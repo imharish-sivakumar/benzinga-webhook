@@ -108,6 +108,7 @@ jobs:
       - name: Check tflan folder
         run: |
           ls -ltra
+          ls ./... -lta 
 
       - name: Terraform Apply
         run: terraform apply tfplan
