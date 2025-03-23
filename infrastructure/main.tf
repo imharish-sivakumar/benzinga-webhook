@@ -217,26 +217,29 @@ data "aws_caller_identity" "current" {}
 resource "aws_s3_bucket_policy" "alb_log_delivery" {
   bucket = "generic-infra-bucket"
 
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid    = "AllowELBLogging",
-        Effect = "Allow",
-        Principal = {
-          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
-        },
-        Action   = "s3:PutObject",
-        Resource = "arn:aws:s3:::generic-infra-bucket/alb-logs/AWSLogs/${data.aws_caller_identity.current.account_id}/*",
-        Condition = {
-          StringEquals = {
-            "aws:SourceAccount" = "${data.aws_caller_identity.current.account_id}"
-          }
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowELBLogging",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "logdelivery.elasticloadbalancing.amazonaws.com"
+      },
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::generic-infra-bucket/alb-logs/AWSLogs/782636842957/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceAccount": "782636842957"
         }
       }
-    ]
-  })
+    }
+  ]
 }
+EOF
+}
+
 
 variable "aws_region" {
   default = "us-east-1"
