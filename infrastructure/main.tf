@@ -212,6 +212,40 @@ resource "aws_route53_record" "www_subdomain" {
   }
 }
 
+resource "aws_s3_bucket_policy" "alb_log_policy" {
+  bucket = "generic-infra-bucket"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid       = "AWSLogDeliveryWrite",
+        Effect    = "Allow",
+        Principal = {
+          Service = "elasticloadbalancing.amazonaws.com"
+        },
+        Action    = "s3:PutObject",
+        Resource  = "arn:aws:s3:::generic-infra-bucket/alb-logs/AWSLogs/*",
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      },
+      {
+        Sid       = "AWSLogDeliveryAclCheck",
+        Effect    = "Allow",
+        Principal = {
+          Service = "elasticloadbalancing.amazonaws.com"
+        },
+        Action   = "s3:GetBucketAcl",
+        Resource = "arn:aws:s3:::generic-infra-bucket"
+      }
+    ]
+  })
+}
+
+
 output "aws_ec2_instance_public_dns" {
   value = aws_instance.dev_trial_instance.public_dns
 }
