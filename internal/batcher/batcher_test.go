@@ -38,7 +38,7 @@ func (s *captureServer) handler(w http.ResponseWriter, r *http.Request) {
 	s.lastBatch = entries
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
+	_, _ = w.Write([]byte("ok"))
 }
 
 func sampleEntry() model.LogEntry {

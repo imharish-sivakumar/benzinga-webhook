@@ -1,14 +1,15 @@
 run:
-  timeout: 2m
-  tests: true
+  timeout: 5m
 
 linters:
   enable:
-    - govet
-    - gofmt
-    - revive
     - errcheck
+    - revive
+    - govet
     - staticcheck
+    - gofmt
+    - goimports
+    - unused
 
 issues:
   exclude-use-default: false

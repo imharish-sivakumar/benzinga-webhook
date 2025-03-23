@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// PhoneValidator validates phone numbers using a custom pattern format (e.g., 123-4567-891).
 var PhoneValidator = func(fl validator.FieldLevel) bool {
 	pattern := `^\d{3}-\d{4}-\d{3}$`
 	matched, _ := regexp.MatchString(pattern, fl.Field().String())
@@ -45,7 +46,10 @@ func (h *Handler) LogPayload(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
 		h.log.Error("failed to decode json", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprintf(`{"error": "%s"}`, err.Error())))
+		_, err := w.Write([]byte(fmt.Sprintf(`{"error": "%s"}`, err.Error())))
+		if err != nil {
+			h.log.Error("unable to write response body", zap.Error(err))
+		}
 		return
 	}
 

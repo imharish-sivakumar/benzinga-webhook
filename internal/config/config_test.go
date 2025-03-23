@@ -20,10 +20,10 @@ func TestLoad_Defaults(t *testing.T) {
 }
 
 func TestLoad_CustomEnv(t *testing.T) {
-	os.Setenv("ENV", "production")
-	os.Setenv("BATCH_SIZE", "15")
-	os.Setenv("BATCH_INTERVAL", "30s")
-	os.Setenv("POST_ENDPOINT", "https://example.com/hook")
+	_ = os.Setenv("ENV", "production")
+	_ = os.Setenv("BATCH_SIZE", "15")
+	_ = os.Setenv("BATCH_INTERVAL", "30s")
+	_ = os.Setenv("POST_ENDPOINT", "https://example.com/hook")
 
 	cfg := Load()
 
@@ -34,7 +34,7 @@ func TestLoad_CustomEnv(t *testing.T) {
 }
 
 func TestLoad_InvalidBatchSize(t *testing.T) {
-	os.Setenv("BATCH_SIZE", "invalid")
+	_ = os.Setenv("BATCH_SIZE", "invalid")
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("expected panic due to invalid BATCH_SIZE")
@@ -44,8 +44,8 @@ func TestLoad_InvalidBatchSize(t *testing.T) {
 }
 
 func TestLoad_InvalidInterval(t *testing.T) {
-	os.Setenv("BATCH_SIZE", "5")
-	os.Setenv("BATCH_INTERVAL", "invalid-duration")
+	_ = os.Setenv("BATCH_SIZE", "5")
+	_ = os.Setenv("BATCH_INTERVAL", "invalid-duration")
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("expected panic due to invalid BATCH_INTERVAL")

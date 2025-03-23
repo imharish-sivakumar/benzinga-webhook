@@ -1,3 +1,4 @@
+// Package apperror provides utilities to handle and map custom validation errors.
 package apperror
 
 import (
