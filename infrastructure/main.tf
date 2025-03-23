@@ -212,39 +212,40 @@ resource "aws_route53_record" "www_subdomain" {
   }
 }
 
-resource "aws_s3_bucket_policy" "alb_log_policy" {
+resource "aws_s3_bucket_policy" "alb_logging_policy" {
   bucket = "generic-infra-bucket"
 
   policy = jsonencode({
-    Version = "2012-10-17",
+    Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "AWSLogDeliveryWrite",
-        Effect = "Allow",
+        Sid       = "ALBLoggingPermissions"
+        Effect    = "Allow"
         Principal = {
-          Service = "elasticloadbalancing.amazonaws.com"
-        },
-        Action   = "s3:PutObject",
-        Resource = "arn:aws:s3:::generic-infra-bucket/alb-logs/AWSLogs/*",
+          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
+        }
+        Action = [
+          "s3:PutObject"
+        ]
+        Resource = "arn:aws:s3:::generic-infra-bucket/alb-logs/AWSLogs/*"
         Condition = {
           StringEquals = {
-            "s3:x-amz-acl" = "bucket-owner-full-control"
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          },
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:elasticloadbalancing:${var.aws_region}:${data.aws_caller_identity.current.account_id}:loadbalancer/app/portfolio-alb/*"
           }
         }
-      },
-      {
-        Sid    = "AWSLogDeliveryAclCheck",
-        Effect = "Allow",
-        Principal = {
-          Service = "elasticloadbalancing.amazonaws.com"
-        },
-        Action   = "s3:GetBucketAcl",
-        Resource = "arn:aws:s3:::generic-infra-bucket"
       }
     ]
   })
 }
 
+data "aws_caller_identity" "current" {}
+
+variable "aws_region" {
+  default = "us-east-1"
+}
 
 output "aws_ec2_instance_public_dns" {
   value = aws_instance.dev_trial_instance.public_dns
