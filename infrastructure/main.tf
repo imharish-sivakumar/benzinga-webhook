@@ -142,6 +142,12 @@ resource "aws_lb" "app_lb" {
   subnets            = var.subnets # Replace with public subnets
 
   enable_deletion_protection = false
+
+  access_logs {
+    bucket  = "generic-infra-bucket"
+    enabled = true
+    prefix  = "alb-logs"
+  }
 }
 
 # Target Group
@@ -165,7 +171,7 @@ resource "aws_lb_listener" "https_listener" {
   load_balancer_arn = aws_lb.app_lb.arn
   port              = 443
   protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
   certificate_arn   = aws_acm_certificate.ssl_cert.arn
 
   default_action {
