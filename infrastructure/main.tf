@@ -142,12 +142,6 @@ resource "aws_lb" "app_lb" {
   subnets            = var.subnets # Replace with public subnets
 
   enable_deletion_protection = false
-
-  access_logs {
-    bucket  = "generic-infra-bucket"
-    enabled = true
-    prefix  = "alb-logs"
-  }
 }
 
 # Target Group
@@ -211,35 +205,6 @@ resource "aws_route53_record" "www_subdomain" {
     evaluate_target_health = true
   }
 }
-
-data "aws_caller_identity" "current" {}
-
-resource "aws_s3_bucket_policy" "alb_log_delivery" {
-  bucket = "generic-infra-bucket"
-
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "AllowELBLogging",
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "logdelivery.elasticloadbalancing.amazonaws.com"
-      },
-      "Action": "s3:PutObject",
-      "Resource": "arn:aws:s3:::generic-infra-bucket/alb-logs/AWSLogs/782636842957/*",
-      "Condition": {
-        "StringEquals": {
-          "aws:SourceAccount": "782636842957"
-        }
-      }
-    }
-  ]
-}
-EOF
-}
-
 
 variable "aws_region" {
   default = "us-east-1"
