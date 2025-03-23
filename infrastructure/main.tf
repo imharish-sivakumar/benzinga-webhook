@@ -212,36 +212,31 @@ resource "aws_route53_record" "www_subdomain" {
   }
 }
 
-resource "aws_s3_bucket_policy" "alb_logging_policy" {
+data "aws_caller_identity" "current" {}
+
+resource "aws_s3_bucket_policy" "alb_log_delivery" {
   bucket = "generic-infra-bucket"
 
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [
       {
-        Sid    = "ALBLoggingPermissions"
-        Effect = "Allow"
+        Sid    = "AllowELBLogging",
+        Effect = "Allow",
         Principal = {
           Service = "logdelivery.elasticloadbalancing.amazonaws.com"
-        }
-        Action = [
-          "s3:PutObject"
-        ]
-        Resource = "arn:aws:s3:::generic-infra-bucket/alb-logs/AWSLogs/*"
+        },
+        Action   = "s3:PutObject",
+        Resource = "arn:aws:s3:::generic-infra-bucket/alb-logs/AWSLogs/${data.aws_caller_identity.current.account_id}/*",
         Condition = {
           StringEquals = {
-            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-          },
-          ArnLike = {
-            "aws:SourceArn" = "arn:aws:elasticloadbalancing:${var.aws_region}:${data.aws_caller_identity.current.account_id}:loadbalancer/app/portfolio-alb/*"
+            "aws:SourceAccount" = "${data.aws_caller_identity.current.account_id}"
           }
         }
       }
     ]
   })
 }
-
-data "aws_caller_identity" "current" {}
 
 variable "aws_region" {
   default = "us-east-1"
