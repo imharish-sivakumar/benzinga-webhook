@@ -14,6 +14,8 @@ jobs:
   lint:
     name: GolangCI Lint
     runs-on: ubuntu-latest
+    env:
+      GOMODCACHE: /tmp/go-mod-cache
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
