@@ -7,7 +7,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o webhook-receiver ./app/cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -o webhook-receiver /cmd/main
 
 FROM alpine:latest
 WORKDIR /root/
