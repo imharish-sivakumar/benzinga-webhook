@@ -2,6 +2,8 @@
 
 A lightweight Go-based webhook receiver to handle and batch log entries with validation, batching logic, and configurable deployment infrastructure. Built for production-ready systems with CI/CD, infrastructure-as-code (Terraform + Ansible), and Dockerized deployment.
 
+[![Go Webhook CI/CD](https://github.com/imharish-sivakumar/benzinga-webhook/actions/workflows/ci.yml/badge.svg)](https://github.com/imharish-sivakumar/benzinga-webhook/actions/workflows/ci.yml)
+
 ---
 
 ## ✨ Features
