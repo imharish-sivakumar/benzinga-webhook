@@ -1,6 +1,6 @@
 services:
   webhook-receiver:
-    build: .
+    image: harishsivakumar/webhook-receiver:latest
     container_name: webhook-receiver
     ports:
       - "8080:8080"
