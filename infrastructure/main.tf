@@ -144,6 +144,11 @@ resource "aws_lb" "app_lb" {
   subnets            = var.subnets # Replace with public subnets
 
   enable_deletion_protection = false
+
+  access_logs {
+    bucket  = "generic-infra-bucket"
+    enabled = false
+  }
 }
 
 # Target Group
