@@ -146,7 +146,7 @@
 
     # Ensure working dir is /home/{{ ansible_user }}
     - name: Check if webhook container is running
-      shell: docker ps --format '{{.Names}}' | grep -q '^webhook-receiver$'
+      shell: docker ps --format '{{ "{{.Names}}" }}' | grep -q '^webhook-receiver$'
       register: container_status
       ignore_errors: yes
 
