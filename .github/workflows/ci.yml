@@ -92,16 +92,13 @@ jobs:
           reporter: java-junit
 
   semgrep:
-    name: Semgrep SAST Scan
+    name: semgrep/ci
     runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run Semgrep with auto config
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: "auto"
+      - uses: actions/checkout@v4
+      - run: semgrep ci
 
   docker:
     name: Build and Push Docker Image
