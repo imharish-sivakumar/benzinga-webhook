@@ -125,6 +125,44 @@
     - name: Verify Docker Compose is installed
       command: docker compose version
 
+    # Deploy docker-compose.yaml
+    - name: Create docker-compose.yaml
+      copy:
+        dest: /home/{{ ansible_user }}/docker-compose.yaml
+        content: |
+          services:
+            webhook-receiver:
+              image: harishsivakumar/webhook-receiver:latest
+              container_name: webhook-receiver
+              ports:
+                - "8080:8080"
+              environment:
+                - BATCH_SIZE=5
+                - BATCH_INTERVAL=10s
+                - POST_ENDPOINT=https://webhook.site/0e9761c0-3966-45e2-b1dc-d675cb8752b4
+              restart: unless-stopped
+        owner: "{{ ansible_user }}"
+        mode: '0644'
+
+    # Ensure working dir is /home/{{ ansible_user }}
+    - name: Check if webhook container is running
+      shell: docker ps --format '{{.Names}}' | grep -q '^webhook-receiver$'
+      register: container_status
+      ignore_errors: yes
+
+    - name: Stop and remove existing container if running
+      shell: |
+        docker compose down && \
+        docker rmi harishsivakumar/webhook-receiver:latest
+      args:
+        chdir: /home/{{ ansible_user }}
+      when: container_status.rc == 0
+
+    - name: Start the container with docker compose
+      shell: docker compose up -d
+      args:
+        chdir: /home/{{ ansible_user }}
+
   handlers:
     - name: Reload systemd
       command: systemctl daemon-reload

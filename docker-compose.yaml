@@ -7,5 +7,5 @@ services:
     environment:
       - BATCH_SIZE=5
       - BATCH_INTERVAL=10s
-      - POST_ENDPOINT=https://httpbin.org/post
+      - POST_ENDPOINT=https://webhook.site/0e9761c0-3966-45e2-b1dc-d675cb8752b4
     restart: unless-stopped
