@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./infrastructure
+        working-directory: ./infrastructure/ansible
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -159,7 +159,6 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ansible
 
       - name: Update Ansible Host
-        working-directory: infrastructure/ansible
         run: |
           awk "/^\[flask_servers\]/ {in_section=1} in_section && /ansible_host=/ {sub(/ansible_host=[^ ]*/, \"ansible_host=${{ needs.apply.outputs.public_dns }}\")} {print} /^\s*$/ {in_section=0}" inventory.ini > temp.ini && mv temp.ini inventory.ini
 
