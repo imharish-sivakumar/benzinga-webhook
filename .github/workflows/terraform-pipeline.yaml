@@ -164,4 +164,4 @@ jobs:
         working-directory: infrastructure/ansible
         env:
           ANSIBLE_HOST_KEY_CHECKING: False
-        run: ansible-playbook -i inventory.ini setup_flask_nginx.yaml
+        run: ansible-playbook -i inventory.ini setup_nginx.yaml
