@@ -98,7 +98,7 @@ jobs:
       image: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
-      - run: semgrep ci
+      - run: semgrep scan --config auto
 
   docker:
     name: Build and Push Docker Image
