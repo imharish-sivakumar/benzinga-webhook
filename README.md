@@ -89,7 +89,7 @@ Receives a single log payload (validated) and adds to the batch. If the batch si
 |------------------|----------------------------------|-------------------------------------------------------------|
 | `BATCH_SIZE`     | Max number of logs in batch      | `5`                                                         |
 | `BATCH_INTERVAL` | Time interval for batch flush    | `10s`                                                       |
-| `POST_ENDPOINT`  | Target endpoint to send the logs | `https://webhook.site/0e9761c0-3966-45e2-b1dc-d675cb8752b4` |
+| `POST_ENDPOINT`  | Target endpoint to send the logs | `https://webhook.site/5ebbd1d7-9a83-4272-a5e6-8a2b3d085df1` |
 
 ---
 
@@ -97,12 +97,12 @@ Receives a single log payload (validated) and adds to the batch. If the batch si
 
 When 5 logs are sent to `/log`, the batcher will POST them to:
 
-🔗 `https://webhook.site/0e9761c0-3966-45e2-b1dc-d675cb8752b4`
+🔗 `https://webhook.site/5ebbd1d7-9a83-4272-a5e6-8a2b3d085df1`
 
 ### 🕵️‍♂️ To verify:
 1. Send 5 valid POST requests to `/log`
 2. Then, view the batched request at:
-   - 👉 https://webhook.site/#!/view/0e9761c0-3966-45e2-b1dc-d675cb8752b4/bad89fd4-b724-4f4a-b01d-04f439555cf6/1
+   - 👉 https://webhook.site/#!/view/5ebbd1d7-9a83-4272-a5e6-8a2b3d085df1
 
 ---
 
