@@ -5,128 +5,161 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"sync"
+	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"benzinga-webhook/internal/config"
 	"benzinga-webhook/internal/model"
 
-	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zaptest"
 )
 
-type captureServer struct {
-	t         *testing.T
-	lock      sync.Mutex
-	calls     int
-	lastBatch []model.LogEntry
+type mockServer struct {
+	Requests [][]model.LogEntry
+	Fail     bool
+	FailResp bool
+	Hits     int32
+	Server   *httptest.Server
 }
 
-func (s *captureServer) handler(w http.ResponseWriter, r *http.Request) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.calls++
-	body, err := io.ReadAll(r.Body)
-	assert.NoError(s.t, err)
-
-	var entries []model.LogEntry
-	err = json.Unmarshal(body, &entries)
-	assert.NoError(s.t, err)
-
-	s.lastBatch = entries
-
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
-}
-
-func sampleEntry() model.LogEntry {
-	return model.LogEntry{
-		UserID:    1,
-		Total:     9.99,
-		Title:     "Test Payload",
-		Completed: false,
-		Meta: model.Meta{
-			Logins: []model.Login{{Time: "2020-08-08T01:52:50Z", IP: "127.0.0.1"}},
-			PhoneNumbers: model.PhoneNumbers{
-				Home:   "555-1212-123",
-				Mobile: "555-3434-999",
-			},
-		},
+func newMockServer(fail, failResp bool, passAt int32) *mockServer {
+	s := &mockServer{
+		Fail:     fail,
+		FailResp: failResp,
 	}
+	s.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&s.Hits, 1)
+		if passAt == s.Hits {
+			body, _ := io.ReadAll(r.Body)
+			var logs []model.LogEntry
+			_ = json.Unmarshal(body, &logs)
+			s.Requests = append(s.Requests, logs)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if s.Fail {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if s.FailResp {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		var logs []model.LogEntry
+		_ = json.Unmarshal(body, &logs)
+		s.Requests = append(s.Requests, logs)
+		w.WriteHeader(http.StatusOK)
+	}))
+	return s
 }
 
-func TestBatcher_FlushBySize(t *testing.T) {
-	server := &captureServer{t: t}
-	ts := httptest.NewServer(http.HandlerFunc(server.handler))
-	defer ts.Close()
+func TestBatcherFlushOnQuit(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	srv := newMockServer(false, false, 1)
+	defer srv.Server.Close()
 
-	cfg := &config.Config{
-		BatchSize:     2,
-		BatchInterval: 10 * time.Second,
-		PostEndpoint:  ts.URL,
-	}
-
-	b := New(cfg, zaptest.NewLogger(t))
-	go b.Start()
-	defer b.Stop()
-
-	b.Add(sampleEntry())
-	b.Add(sampleEntry())
-	time.Sleep(1 * time.Second)
-
-	server.lock.Lock()
-	defer server.lock.Unlock()
-	assert.Equal(t, 1, server.calls)
-	assert.Len(t, server.lastBatch, 2)
-}
-
-func TestBatcher_FlushByInterval(t *testing.T) {
-	server := &captureServer{t: t}
-	ts := httptest.NewServer(http.HandlerFunc(server.handler))
-	defer ts.Close()
-
-	cfg := &config.Config{
-		BatchSize:     100,
-		BatchInterval: 1 * time.Second,
-		PostEndpoint:  ts.URL,
-	}
-
-	b := New(cfg, zaptest.NewLogger(t))
-	go b.Start()
-	defer b.Stop()
-
-	b.Add(sampleEntry())
-	time.Sleep(2 * time.Second)
-
-	server.lock.Lock()
-	defer server.lock.Unlock()
-	assert.Equal(t, 1, server.calls)
-	assert.Len(t, server.lastBatch, 1)
-}
-
-func TestBatcher_FlushEmpty(t *testing.T) {
 	cfg := &config.Config{
 		BatchSize:     10,
-		BatchInterval: 1 * time.Second,
-		PostEndpoint:  "http://localhost", // unreachable
+		BatchInterval: 5 * time.Second,
+		PostEndpoint:  srv.Server.URL,
 	}
 
-	b := batcher{log: zaptest.NewLogger(t), cfg: cfg, quit: make(chan struct{}), ticker: time.NewTicker(cfg.BatchInterval)}
-	b.flush()
+	b := New(cfg, logger)
+	go b.Start()
+	b.Add(model.LogEntry{UserID: 1, Total: 1.23, Title: "flush-on-quit"})
+	time.Sleep(500 * time.Millisecond)
+	b.Stop()
+
+	time.Sleep(500 * time.Millisecond)
+	if len(srv.Requests) != 1 {
+		t.Errorf("expected 1 flush, got %d", len(srv.Requests))
+	}
 }
 
-func TestBatcher_FlushFailure(t *testing.T) {
-	// simulate failure by using an invalid endpoint
+func TestBatcherRetries(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	srv := newMockServer(true, false, -1)
+	defer srv.Server.Close()
+
 	cfg := &config.Config{
 		BatchSize:     1,
 		BatchInterval: 1 * time.Second,
-		PostEndpoint:  "http://invalid-host.local",
+		PostEndpoint:  srv.Server.URL,
 	}
 
-	b := New(cfg, zaptest.NewLogger(t)).(*batcher)
-	b.entries = []model.LogEntry{sampleEntry()}
+	// intercept os.Exit
+	exited := int32(0)
+	savedExit := os.Exit
+	exitFunc = func(code int) {
+		atomic.StoreInt32(&exited, 1)
+	}
+	defer func() { exitFunc = savedExit }()
 
-	b.flush()
+	b := New(cfg, logger)
+	go b.Start()
+	b.Add(model.LogEntry{UserID: 2, Total: 2.34, Title: "retry-fail"})
+	time.Sleep(10 * time.Second)
+
+	if atomic.LoadInt32(&exited) != 1 {
+		t.Error("expected exit after retries fail")
+	}
+}
+
+func TestBatcherFlushUsingTicker(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	srv := newMockServer(false, false, 1)
+	defer srv.Server.Close()
+
+	cfg := &config.Config{
+		BatchSize:     3,
+		BatchInterval: 2 * time.Second,
+		PostEndpoint:  srv.Server.URL,
+	}
+
+	exited := int32(0)
+	savedExit := os.Exit
+	exitFunc = func(code int) {
+		atomic.StoreInt32(&exited, 1)
+	}
+	defer func() { exitFunc = savedExit }()
+
+	b := New(cfg, logger)
+	go b.Start()
+	b.Add(model.LogEntry{UserID: 3, Total: 3.45, Title: "bad-resp"})
+	time.Sleep(5 * time.Second)
+
+	if atomic.LoadInt32(&exited) != 0 {
+		t.Error("expected non zero exit code")
+	}
+}
+
+func TestBatcherSuccessAfterRetry(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	srv := newMockServer(false, true, 2)
+	defer srv.Server.Close()
+
+	cfg := &config.Config{
+		BatchSize:     1,
+		BatchInterval: 10 * time.Second,
+		PostEndpoint:  srv.Server.URL,
+	}
+
+	exited := int32(0)
+	savedExit := os.Exit
+	exitFunc = func(code int) {
+		atomic.StoreInt32(&exited, 1)
+	}
+	defer func() { exitFunc = savedExit }()
+
+	b := New(cfg, logger)
+	go b.Start()
+	b.Add(model.LogEntry{UserID: 3, Total: 3.45, Title: "bad-resp"})
+	time.Sleep(8 * time.Second)
+
+	if atomic.LoadInt32(&exited) != 0 {
+		t.Error("expected exit due to bad HTTP status code")
+	}
 }

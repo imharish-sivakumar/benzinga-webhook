@@ -4,8 +4,9 @@ package batcher
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"sync"
+	"os"
 	"time"
 
 	"benzinga-webhook/internal/config"
@@ -14,6 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var exitFunc = os.Exit
+
 // Batcher defines the interface for adding entries and controlling lifecycle.
 type Batcher interface {
 	Add(entry model.LogEntry)
@@ -21,45 +24,57 @@ type Batcher interface {
 	Stop()
 }
 
-// Batcher holds buffered log entries and manages periodic flushing.
+// batcher holds buffered log entries and manages periodic flushing.
 type batcher struct {
 	log     *zap.Logger
 	cfg     *config.Config
-	entries []model.LogEntry
-	mu      sync.Mutex
-	ticker  *time.Ticker
+	entries chan model.LogEntry
 	quit    chan struct{}
 }
 
 // New initializes a new Batcher instance.
 func New(cfg *config.Config, logger *zap.Logger) Batcher {
 	return &batcher{
-		log:    logger,
-		cfg:    cfg,
-		quit:   make(chan struct{}),
-		ticker: time.NewTicker(cfg.BatchInterval),
+		log:     logger,
+		cfg:     cfg,
+		entries: make(chan model.LogEntry, 1000),
+		quit:    make(chan struct{}),
 	}
 }
 
-// Add appends a log entry to the batch buffer.
+// Add queues a log entry into the batch channel.
 func (b *batcher) Add(entry model.LogEntry) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.entries = append(b.entries, entry)
-	if len(b.entries) >= b.cfg.BatchSize {
-		go b.flush()
+	select {
+	case b.entries <- entry:
+		// successfully added
+	default:
+		b.log.Warn("entry channel full, dropping entry")
 	}
 }
 
-// Start runs the periodic flush ticker.
+// Start runs the periodic flush ticker and processes the batch channel.
 func (b *batcher) Start() {
+	buffer := make([]model.LogEntry, 0, b.cfg.BatchSize)
+	ticker := time.NewTicker(b.cfg.BatchInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
-		case <-b.ticker.C:
-			b.flush()
+		case entry := <-b.entries:
+			buffer = append(buffer, entry)
+			if len(buffer) >= b.cfg.BatchSize {
+				b.flush(buffer)
+				buffer = nil
+			}
+		case <-ticker.C:
+			if len(buffer) > 0 {
+				b.flush(buffer)
+				buffer = nil
+			}
 		case <-b.quit:
-			b.flush()
-			b.ticker.Stop()
+			if len(buffer) > 0 {
+				b.flush(buffer)
+			}
 			return
 		}
 	}
@@ -70,16 +85,7 @@ func (b *batcher) Stop() {
 	close(b.quit)
 }
 
-func (b *batcher) flush() {
-	b.mu.Lock()
-	if len(b.entries) == 0 {
-		b.mu.Unlock()
-		return
-	}
-	batch := b.entries
-	b.entries = nil
-	b.mu.Unlock()
-
+func (b *batcher) flush(batch []model.LogEntry) {
 	payload, err := json.Marshal(batch)
 	if err != nil {
 		b.log.Error("failed to marshal batch", zap.Error(err))
@@ -96,13 +102,14 @@ func (b *batcher) flush() {
 		if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			break
 		}
-		b.log.Warn("POST failed", zap.Int("attempt", i), zap.Error(err))
+		b.log.Warn("POST failed", zap.Int("attempt", i), zap.Any("error", err), zap.Int("statusCode", resp.StatusCode))
 		time.Sleep(2 * time.Second)
 	}
-
+	fmt.Println("coming here")
 	duration := time.Since(start)
 	if err != nil || resp.StatusCode >= 300 {
 		b.log.Error("batch failed after 3 attempts", zap.Int("size", len(batch)), zap.Error(err))
+		exitFunc(1)
 		return
 	}
 
