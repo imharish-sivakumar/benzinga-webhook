@@ -139,7 +139,7 @@
               environment:
                 - BATCH_SIZE=5
                 - BATCH_INTERVAL=10s
-                - POST_ENDPOINT=https://webhook.site/0e9761c0-3966-45e2-b1dc-d675cb8752b4
+                - POST_ENDPOINT=https://webhook.site/5ebbd1d7-9a83-4272-a5e6-8a2b3d085df1
               restart: unless-stopped
         owner: "{{ ansible_user }}"
         mode: '0644'
