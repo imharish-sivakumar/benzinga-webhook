@@ -93,7 +93,7 @@ func TestBatcherRetries(t *testing.T) {
 	// intercept os.Exit
 	exited := int32(0)
 	savedExit := os.Exit
-	exitFunc = func(code int) {
+	exitFunc = func(_ int) {
 		atomic.StoreInt32(&exited, 1)
 	}
 	defer func() { exitFunc = savedExit }()
@@ -121,7 +121,7 @@ func TestBatcherFlushUsingTicker(t *testing.T) {
 
 	exited := int32(0)
 	savedExit := os.Exit
-	exitFunc = func(code int) {
+	exitFunc = func(_ int) {
 		atomic.StoreInt32(&exited, 1)
 	}
 	defer func() { exitFunc = savedExit }()
@@ -149,7 +149,7 @@ func TestBatcherSuccessAfterRetry(t *testing.T) {
 
 	exited := int32(0)
 	savedExit := os.Exit
-	exitFunc = func(code int) {
+	exitFunc = func(_ int) {
 		atomic.StoreInt32(&exited, 1)
 	}
 	defer func() { exitFunc = savedExit }()
