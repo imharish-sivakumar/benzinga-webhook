@@ -1,31 +1,14 @@
 name: Terraform Destroy
 
 on:
-  workflow_dispatch:
-    inputs:
-      confirm_destroy:
-        description: 'Type "DESTROY" to confirm infrastructure destruction'
-        required: true
-        type: string
+  push:
+    branches:
+      - main
 
 jobs:
-  # Job for validating destroy confirmation
-  validate:
-    name: Validate Destroy Confirmation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check confirmation
-        run: |
-          if [ "${{ github.event.inputs.confirm_destroy }}" != "DESTROY" ]; then
-            echo "❌ Destroy confirmation failed. You must type 'DESTROY' to proceed."
-            exit 1
-          fi
-          echo "✅ Destroy confirmation validated"
-
   # Job for Terraform destroy plan
   plan-destroy:
     name: Terraform Destroy Plan
-    needs: validate
     runs-on: ubuntu-latest
     defaults:
       run:
